@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AppThemeProvider, useAppTheme } from '@/components/theme-context';
+import { SchoolProviderRoot } from '@/providers/context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -14,6 +15,30 @@ function RootStack() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen
           name="course/[id]"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [1.0],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
+          name="transcript"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [1.0],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
+          name="attendance"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [1.0],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
+          name="calendar"
           options={{
             presentation: 'formSheet',
             sheetAllowedDetents: [1.0],
@@ -35,8 +60,10 @@ function RootStack() {
 
 export default function RootLayout() {
   return (
-    <AppThemeProvider>
-      <RootStack />
-    </AppThemeProvider>
+    <SchoolProviderRoot>
+      <AppThemeProvider>
+        <RootStack />
+      </AppThemeProvider>
+    </SchoolProviderRoot>
   );
 }

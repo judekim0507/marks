@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -6,45 +7,7 @@ import { SegmentedControl } from '@/components/segmented-control';
 import { SquircleView } from '@/components/squircle-view';
 import { useAppTheme } from '@/components/theme-context';
 import { Fonts, type AppTheme } from '@/constants/theme';
-
-const COURSE = {
-  name: 'AP Chemistry',
-  detail: 'Dr. Sarah Chen · Period 3 · Room 214',
-  grade: '92.4%',
-  letter: 'A',
-  term: 'Term 1',
-  updated: 'Updated Aug 8',
-};
-
-const CATEGORIES = [
-  { id: 'tests', name: 'Tests', weight: '40%', score: 89.2, display: '89.2', letter: 'B+' },
-  { id: 'labs', name: 'Labs', weight: '30%', score: 95.1, display: '95.1', letter: 'A' },
-  { id: 'homework', name: 'Homework', weight: '20%', score: 98.0, display: '98.0', letter: 'A+' },
-  { id: 'participation', name: 'Participation', weight: '10%', score: 100, display: '100', letter: 'A+' },
-];
-
-const ASSIGNMENTS = [
-  { id: 'a1', name: 'Unit 5 Test — Thermodynamics', date: 'Aug 6', score: '89/100' },
-  { id: 'a2', name: 'Lab: Calorimetry', date: 'Aug 4', score: '19/20' },
-  { id: 'a3', name: 'Problem Set 12', date: 'Jul 31', score: '10/10' },
-  { id: 'a4', name: 'Quiz: Enthalpy', date: 'Jul 29', score: '17/20' },
-  { id: 'a5', name: "Lab: Hess's Law", date: 'Jul 24', score: '20/20' },
-  { id: 'a6', name: 'Problem Set 11', date: 'Jul 22', score: null },
-];
-
-const ATTENDANCE_SUMMARY = [
-  { id: 'present', label: 'Present', value: '62' },
-  { id: 'late', label: 'Late', value: '2' },
-  { id: 'absent', label: 'Absent', value: '3' },
-];
-
-const ATTENDANCE_RECORDS = [
-  { id: 'r1', date: 'Aug 5', detail: 'Period 3 · 8 min', status: 'Late' },
-  { id: 'r2', date: 'Jul 28', detail: 'Full day · Excused', status: 'Absent' },
-  { id: 'r3', date: 'Jul 15', detail: 'Period 3 · 4 min', status: 'Late' },
-  { id: 'r4', date: 'Jul 2', detail: 'Full day · Unexcused', status: 'Absent' },
-  { id: 'r5', date: 'Jun 20', detail: 'Full day · Excused', status: 'Absent' },
-];
+import { useSchool } from '@/providers/context';
 
 type CourseTab = 'overview' | 'attendance';
 
@@ -58,11 +21,17 @@ export default function CourseScreen() {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [tab, setTab] = useState<CourseTab>('overview');
+  const school = useSchool();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const course = school.courses.find((c) => c.id === id) ?? school.courses[0];
+  const detail = school.courseDetail(course.id);
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.course}>{COURSE.name}</Text>
-        <Text style={styles.courseDetail}>{COURSE.detail}</Text>
+        <Text style={styles.course}>{course.name}</Text>
+        <Text style={styles.courseDetail}>
+          {course.teacher} · Block {course.block} · {school.roomLabel(course.room)}
+        </Text>
       </View>
 
       <View style={styles.segmentWrap}>
@@ -86,7 +55,7 @@ export default function CourseScreen() {
               cornerRadius={24}
               cornerSmoothing={0.75}>
               <View style={styles.summaryRow}>
-                {ATTENDANCE_SUMMARY.map((stat) => (
+                {detail.attendance.summary.map((stat) => (
                   <View key={stat.id} style={styles.summaryStat}>
                     <Text style={styles.summaryValue}>{stat.value}</Text>
                     <Text style={styles.summaryLabel}>{stat.label}</Text>
@@ -103,13 +72,13 @@ export default function CourseScreen() {
               backgroundColor={theme.card}
               cornerRadius={24}
               cornerSmoothing={0.75}>
-              {ATTENDANCE_RECORDS.map((record, index) => (
+              {detail.attendance.records.map((record, index) => (
                 <View
                   key={record.id}
                   style={[
                     styles.assignmentRow,
                     styles.recordRow,
-                    index < ATTENDANCE_RECORDS.length - 1 && styles.rowBorder,
+                    index < detail.attendance.records.length - 1 && styles.rowBorder,
                   ]}>
                   <View style={styles.assignmentInner}>
                     <View style={styles.assignmentInfo}>
@@ -130,7 +99,7 @@ export default function CourseScreen() {
       <View style={styles.section}>
         <View style={styles.sectionLabelRow}>
           <Text style={styles.sectionLabel}>Report Card</Text>
-          <Text style={styles.sectionLabelDetail}>{COURSE.term}</Text>
+          <Text style={styles.sectionLabelDetail}>{school.term.label}</Text>
         </View>
         <SquircleView
           style={styles.card}
@@ -139,10 +108,10 @@ export default function CourseScreen() {
           cornerSmoothing={0.75}>
           <View style={styles.reportCard}>
             <View style={styles.reportInfo}>
-              <Text style={styles.reportGrade}>{COURSE.grade}</Text>
-              <Text style={styles.reportCaption}>{COURSE.updated}</Text>
+              <Text style={styles.reportGrade}>{course.grade.toFixed(1)}%</Text>
+              <Text style={styles.reportCaption}>{detail.updated}</Text>
             </View>
-            <Text style={styles.reportLetter}>{COURSE.letter}</Text>
+            <Text style={styles.reportLetter}>{school.letterFor(course.grade)}</Text>
           </View>
         </SquircleView>
       </View>
@@ -154,12 +123,12 @@ export default function CourseScreen() {
           backgroundColor={theme.card}
           cornerRadius={24}
           cornerSmoothing={0.75}>
-          {CATEGORIES.map((category, index) => (
+          {detail.categories.map((category, index) => (
             <View
               key={category.id}
               style={[
                 styles.categoryRow,
-                index < CATEGORIES.length - 1 && styles.rowBorder,
+                index < detail.categories.length - 1 && styles.rowBorder,
               ]}>
               <View style={styles.categoryTop}>
                 <Text style={styles.rowTitle}>
@@ -188,16 +157,16 @@ export default function CourseScreen() {
           backgroundColor={theme.card}
           cornerRadius={24}
           cornerSmoothing={0.75}>
-          {ASSIGNMENTS.map((assignment, index) => (
+          {detail.assignments.map((assignment, index) => (
             <PressableHighlight
               key={assignment.id}
               style={[
                 styles.assignmentRow,
-                index < ASSIGNMENTS.length - 1 && styles.rowBorder,
+                index < detail.assignments.length - 1 && styles.rowBorder,
               ]}
               contentStyle={styles.assignmentContent}
               cornerSmoothing={0.75}
-              cornerRadii={cardCorners(index, ASSIGNMENTS.length)}>
+              cornerRadii={cardCorners(index, detail.assignments.length)}>
               <View style={styles.assignmentInner}>
                 <View style={styles.assignmentInfo}>
                   <Text style={styles.rowTitle} numberOfLines={1}>

@@ -6,6 +6,7 @@ import { NativeColorPicker } from '@/components/native-color-picker';
 import { PressableHighlight } from '@/components/pressable-highlight';
 import { SquircleView } from '@/components/squircle-view';
 import { useAppTheme } from '@/components/theme-context';
+import { useSchool } from '@/providers/context';
 import {
   Fonts,
   Themes,
@@ -13,12 +14,6 @@ import {
   type AppTheme,
   type ThemeName,
 } from '@/constants/theme';
-
-const PROFILE = {
-  initials: 'JK',
-  name: 'Jude Kim',
-  detail: 'Lincoln High · Class of 2027',
-};
 
 const PREFERENCES = [
   { id: 'notifications', label: 'Notifications', value: 'On' },
@@ -38,6 +33,7 @@ export default function SettingsScreen() {
   const { theme, themeName, customColor, setThemeName, setCustomColor } =
     useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const school = useSchool();
   const customPreview = useMemo(
     () => themeFromColor(customColor),
     [customColor],
@@ -47,11 +43,11 @@ export default function SettingsScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.profile}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{PROFILE.initials}</Text>
+          <Text style={styles.avatarText}>{school.profile.initials}</Text>
         </View>
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{PROFILE.name}</Text>
-          <Text style={styles.profileDetail}>{PROFILE.detail}</Text>
+          <Text style={styles.profileName}>{school.profile.name}</Text>
+          <Text style={styles.profileDetail}>{school.profile.detail}</Text>
         </View>
       </View>
 

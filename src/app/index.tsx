@@ -1,51 +1,41 @@
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import {
-  CheckCircleIcon,
-  ChevronRightIcon,
-  HeartIcon,
-  PersonCircleIcon,
-  TrayIcon,
-} from '@/components/icons';
+import { ChevronRightIcon } from '@/components/icons';
+import { useSchool } from '@/providers/context';
 import { PressableHighlight } from '@/components/pressable-highlight';
 import { PressableScale } from '@/components/pressable-scale';
 import { SquircleView } from '@/components/squircle-view';
 import { useAppTheme } from '@/components/theme-context';
 import { Fonts, type AppTheme } from '@/constants/theme';
 
-const CLASSES = Array.from({ length: 8 }, (_, index) => ({
-  id: `class-${index}`,
-  course: 'COURSE_NAME',
-  instructor: 'INSTRUCTOR_NAME',
-  grade: '00.0 A',
-}));
 
-const QUICK_ACTIONS = [
+const QUICK_ACTIONS: {
+  id: string;
+  symbol: SFSymbol;
+  corners?: { topLeft: number; topRight: number; bottomRight: number; bottomLeft: number };
+}[] = [
   {
-    id: 'tasks',
-    Icon: CheckCircleIcon,
-    iconSize: { width: 22, height: 22 },
+    id: 'transcript',
+    symbol: 'doc.text.fill',
     corners: { topLeft: 60, topRight: 10, bottomRight: 10, bottomLeft: 60 },
   },
   {
-    id: 'favorites',
-    Icon: HeartIcon,
-    iconSize: { width: 22, height: 20 },
+    id: 'calendar',
+    symbol: 'calendar',
     corners: undefined,
   },
   {
-    id: 'archive',
-    Icon: TrayIcon,
-    iconSize: { width: 26, height: 19 },
+    id: 'attendance',
+    symbol: 'clock.fill',
     corners: undefined,
   },
   {
     id: 'profile',
-    Icon: PersonCircleIcon,
-    iconSize: { width: 22, height: 22 },
+    symbol: 'person.crop.circle.fill',
     corners: { topLeft: 10, topRight: 60, bottomRight: 60, bottomLeft: 10 },
   },
 ];
@@ -54,16 +44,20 @@ export default function HomeScreen() {
   const router = useRouter();
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const school = useSchool();
+  const average = school.termAverage();
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
 
       <View style={styles.header}>
-        <Text style={styles.headerLabel}>Your term 1 average</Text>
+        <Text style={styles.headerLabel}>
+          Your {school.term.label.toLowerCase()} average
+        </Text>
         <Text style={styles.average}>
-          {'88% '}
-          <Text style={styles.averageGrade}>A</Text>
+          {`${Math.round(average)}% `}
+          <Text style={styles.averageGrade}>{school.letterFor(average)}</Text>
         </Text>
       </View>
 
@@ -72,18 +66,24 @@ export default function HomeScreen() {
           <PressableScale
             key={action.id}
             style={styles.quickAction}
-            onPress={
-              action.id === 'profile'
-                ? () => router.push('/settings')
-                : undefined
-            }>
+            onPress={() => {
+              if (action.id === 'transcript') router.push('/transcript');
+              else if (action.id === 'calendar') router.push('/calendar');
+              else if (action.id === 'attendance') router.push('/attendance');
+              else if (action.id === 'profile') router.push('/settings');
+            }}>
             <SquircleView
               style={styles.quickActionInner}
               backgroundColor={theme.card}
               cornerRadius={10}
               cornerRadii={action.corners}
               cornerSmoothing={1}>
-              <action.Icon color={theme.icon} {...action.iconSize} />
+              <SymbolView
+                name={action.symbol}
+                size={22}
+                weight="medium"
+                tintColor={theme.icon}
+              />
             </SquircleView>
           </PressableScale>
         ))}
@@ -96,40 +96,41 @@ export default function HomeScreen() {
           backgroundColor={theme.card}
           cornerRadius={24}
           cornerSmoothing={0.75}>
-          {CLASSES.map((item, index) => (
+          {school.courses.map((course, index) => (
             <PressableHighlight
-              key={item.id}
+              key={course.id}
               onPress={() =>
                 router.push({
                   pathname: '/course/[id]',
-                  params: {
-                    id: item.id,
-                    course: item.course,
-                    instructor: item.instructor,
-                    grade: item.grade,
-                  },
+                  params: { id: course.id },
                 })
               }
               style={[
                 styles.classRow,
-                index < CLASSES.length - 1 && styles.classRowBorder,
+                index < school.courses.length - 1 && styles.classRowBorder,
               ]}
               contentStyle={styles.classRowContent}
               cornerSmoothing={0.75}
               cornerRadii={
                 index === 0
                   ? { topLeft: 24, topRight: 24 }
-                  : index === CLASSES.length - 1
+                  : index === school.courses.length - 1
                     ? { bottomLeft: 24, bottomRight: 24 }
                     : undefined
               }>
               <View style={styles.classRowInner}>
                 <View style={styles.classInfo}>
-                  <Text style={styles.className}>{item.course}</Text>
-                  <Text style={styles.classInstructor}>{item.instructor}</Text>
+                  <Text style={styles.className} numberOfLines={1}>
+                    {course.name}
+                  </Text>
+                  <Text style={styles.classInstructor}>
+                    {course.teacher} · Block {course.block}
+                  </Text>
                 </View>
                 <View style={styles.classGradeGroup}>
-                  <Text style={styles.classGrade}>{item.grade}</Text>
+                  <Text style={styles.classGrade}>
+                    {course.grade.toFixed(1)} {school.letterFor(course.grade)}
+                  </Text>
                   <View style={styles.chevronBox}>
                     <View style={styles.chevron}>
                       <ChevronRightIcon
@@ -237,6 +238,8 @@ function createStyles(theme: AppTheme) {
       justifyContent: 'space-between',
     },
     classInfo: {
+      flexShrink: 1,
+      paddingRight: 12,
       gap: 5,
     },
     className: {
