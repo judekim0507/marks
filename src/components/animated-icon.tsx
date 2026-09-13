@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -8,40 +8,49 @@ import { scheduleOnRN } from 'react-native-worklets';
 const INITIAL_SCALE_FACTOR = Dimensions.get('screen').height / 90;
 const DURATION = 600;
 
+const splashKeyframe = new Keyframe({
+  0: {
+    transform: [{ scale: 1 }],
+    opacity: 1,
+  },
+  20: {
+    opacity: 1,
+  },
+  70: {
+    opacity: 0,
+    easing: Easing.out(Easing.cubic),
+  },
+  100: {
+    opacity: 0,
+    transform: [{ scale: 1 }],
+    easing: Easing.out(Easing.cubic),
+  },
+});
+
 export function AnimatedSplashOverlay() {
   const [animate, setAnimate] = useState(false);
   const [visible, setVisible] = useState(true);
 
-  if (!visible) return null;
+  // Fallback: never let the overlay outlive the fade, even if the entering
+  // animation is interrupted and its callback never reports completion.
+  useEffect(() => {
+    if (!animate || !visible) return;
+    const fallbackTimer = setTimeout(() => setVisible(false), DURATION + 900);
+    return () => clearTimeout(fallbackTimer);
+  }, [animate, visible]);
 
-  const splashKeyframe = new Keyframe({
-    0: {
-      transform: [{ scale: 1 }],
-      opacity: 1,
-    },
-    20: {
-      opacity: 1,
-    },
-    70: {
-      opacity: 0,
-      easing: Easing.elastic(0.7),
-    },
-    100: {
-      opacity: 0,
-      transform: [{ scale: 1 }],
-      easing: Easing.elastic(0.7),
-    },
-  });
+  if (!visible) return null;
 
   const image = <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />;
 
   return animate ? (
     <Animated.View
+      pointerEvents="none"
       entering={splashKeyframe.duration(DURATION).withCallback((finished) => {
         'worklet';
-        if (finished) {
-          scheduleOnRN(setVisible, false);
-        }
+        // Unmount whether the fade finished or was interrupted, so the overlay
+        // can never stay mounted (and blocking) behind the app UI.
+        scheduleOnRN(setVisible, false);
       })}
       style={styles.splashOverlay}>
       {image}

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   StyleSheet,
   View,
@@ -49,27 +49,46 @@ export function SquircleView({
     );
   };
 
+  const { topLeft, topRight, bottomRight, bottomLeft } = cornerRadii ?? {};
+
+  // Memoize the heavy squircle math so onLayout churn (which keeps `size` as a
+  // new object only when it actually changes) never rebuilds the path string.
+  const path = useMemo(
+    () =>
+      getSquirclePath({
+        width: size.width,
+        height: size.height,
+        cornerRadius,
+        cornerSmoothing,
+        topLeftCornerRadius: topLeft,
+        topRightCornerRadius: topRight,
+        bottomRightCornerRadius: bottomRight,
+        bottomLeftCornerRadius: bottomLeft,
+      }),
+    [size.width, size.height, cornerRadius, cornerSmoothing, topLeft, topRight, bottomRight, bottomLeft],
+  );
+
+  // Solid fallback behind the SVG so the card never pops from transparent
+  // during the first (size-0) frame before onLayout reports dimensions.
+  const radiusStyle = {
+    borderRadius: cornerRadius,
+    borderTopLeftRadius: topLeft,
+    borderTopRightRadius: topRight,
+    borderBottomRightRadius: bottomRight,
+    borderBottomLeftRadius: bottomLeft,
+  };
+
+  const hasSize = size.width > 0 && size.height > 0;
+
   return (
-    <View style={style} onLayout={onLayout}>
-      {size.width > 0 && size.height > 0 && (
+    <View style={[style, radiusStyle, { backgroundColor }]} onLayout={onLayout}>
+      {hasSize && (
         <Svg
           style={StyleSheet.absoluteFill}
           width={size.width}
           height={size.height}
           pointerEvents="none">
-          <Path
-            d={getSquirclePath({
-              width: size.width,
-              height: size.height,
-              cornerRadius,
-              cornerSmoothing,
-              topLeftCornerRadius: cornerRadii?.topLeft,
-              topRightCornerRadius: cornerRadii?.topRight,
-              bottomRightCornerRadius: cornerRadii?.bottomRight,
-              bottomLeftCornerRadius: cornerRadii?.bottomLeft,
-            })}
-            fill={backgroundColor}
-          />
+          <Path d={path} fill={backgroundColor} />
         </Svg>
       )}
       {children}

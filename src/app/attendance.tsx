@@ -6,6 +6,7 @@ import { SquircleView } from '@/components/squircle-view';
 import { useAppTheme } from '@/components/theme-context';
 import { Fonts, type AppTheme } from '@/constants/theme';
 import { useSchool } from '@/providers/context';
+import { useSessionProvider } from '@/providers/auth-context';
 
 function cardCorners(index: number, count: number) {
   if (index === 0) return { topLeft: 24, topRight: 24 };
@@ -16,7 +17,9 @@ function cardCorners(index: number, count: number) {
 export default function AttendanceScreen() {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const school = useSchool();
+  const sessionSchool = useSessionProvider();
+  const fallback = useSchool();
+  const school = sessionSchool ?? fallback;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -75,6 +78,9 @@ export default function AttendanceScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Recent</Text>
+        {school.attendance.recent.length === 0 ? (
+          <Text style={styles.emptyText}>No attendance records from MyEd yet.</Text>
+        ) : (
         <SquircleView
           style={styles.card}
           backgroundColor={theme.card}
@@ -98,6 +104,7 @@ export default function AttendanceScreen() {
             </View>
           ))}
         </SquircleView>
+        )}
       </View>
     </ScrollView>
   );
@@ -207,6 +214,13 @@ function createStyles(theme: AppTheme) {
       fontWeight: '500',
       fontSize: 14,
       color: theme.textSecondary,
+    },
+    emptyText: {
+      fontFamily: Fonts.sans,
+      fontWeight: '500',
+      fontSize: 14,
+      color: theme.textSecondary,
+      paddingHorizontal: 20,
     },
   });
 }

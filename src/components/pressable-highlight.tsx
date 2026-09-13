@@ -23,6 +23,8 @@ type PressableHighlightProps = {
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
   highlightColor?: string;
+  accessibilityLabel?: string;
+  accessibilityRole?: 'button' | 'link' | 'none';
   /** Scale while pressed. Wide surfaces want less than a button's 0.96. */
   pressedScale?: number;
   cornerRadius?: number;
@@ -41,6 +43,8 @@ export function PressableHighlight({
   style,
   contentStyle,
   highlightColor,
+  accessibilityLabel,
+  accessibilityRole,
   pressedScale = 0.985,
   cornerRadius = 0,
   cornerRadii,
@@ -63,13 +67,15 @@ export function PressableHighlight({
     <Pressable
       style={style}
       onPress={onPress}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole={accessibilityRole}
       onPressIn={() => {
         pressed.value = withTiming(1, { duration: 100, easing });
       }}
       onPressOut={() => {
         pressed.value = withTiming(0, { duration: 180, easing });
       }}>
-      <Animated.View style={[styles.fill, animatedStyle]}>
+      <View style={styles.fill}>
         <Animated.View
           style={[StyleSheet.absoluteFill, highlightStyle]}
           pointerEvents="none">
@@ -81,8 +87,8 @@ export function PressableHighlight({
             cornerSmoothing={cornerSmoothing}
           />
         </Animated.View>
-        <View style={contentStyle}>{children}</View>
-      </Animated.View>
+        <Animated.View style={[contentStyle, animatedStyle]}>{children}</Animated.View>
+      </View>
     </Pressable>
   );
 }

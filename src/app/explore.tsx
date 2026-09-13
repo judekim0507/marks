@@ -1,180 +1,275 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMemo, useState } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useRouter } from 'expo-router';
 
-import { ExternalLink } from '@/components/external-link';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Collapsible } from '@/components/ui/collapsible';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { ChevronRightIcon } from '@/components/icons';
+import { PressableHighlight } from '@/components/pressable-highlight';
+import { SquircleView } from '@/components/squircle-view';
+import { useAppTheme } from '@/components/theme-context';
+import { Fonts, type AppTheme } from '@/constants/theme';
+import { useSchool } from '@/providers/context';
+import { useAuth, useSessionProvider } from '@/providers/auth-context';
 
-export default function TabTwoScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
-  const theme = useTheme();
+export default function ExploreScreen() {
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const router = useRouter();
+  const sessionSchool = useSessionProvider();
+  const fallback = useSchool();
+  const school = sessionSchool ?? fallback;
+  const { status } = useAuth();
+  const [query, setQuery] = useState('');
 
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: Spacing.four,
-    },
-  });
+  const trimmed = query.trim().toLowerCase();
+
+  const filtered = useMemo(() => {
+    if (!trimmed) return school.courses;
+    const tokens = trimmed.split(/\s+/).filter(Boolean);
+    return school.courses.filter((course) => {
+      const hay = `${course.name} ${course.teacher} ${course.room} ${course.block}`.toLowerCase();
+      return tokens.every((t) => hay.includes(t));
+    });
+  }, [school.courses, trimmed]);
+
+  if (status === 'restoring') {
+    return (
+      <View style={[styles.screen, { backgroundColor: theme.background }]}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Explore</Text>
+          <Text style={styles.subtitle}>Loading…</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="subtitle">Explore</ThemedText>
-          <ThemedText style={styles.centerText} themeColor="textSecondary">
-            This starter app includes example{'\n'}code to help you get started.
-          </ThemedText>
+      style={[styles.screen, { backgroundColor: theme.background }]}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled">
+      <View style={styles.header}>
+        <Text style={styles.title}>Search</Text>
+        <Text style={styles.subtitle}>
+          Find your classes by name, teacher, or room
+        </Text>
+      </View>
 
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.linkButton}>
-                <ThemedText type="link">Expo documentation</ThemedText>
-                <SymbolView
-                  tintColor={theme.text}
-                  name={{ ios: 'arrow.up.right.square', android: 'link', web: 'link' }}
-                  size={12}
-                />
-              </ThemedView>
-            </Pressable>
-          </ExternalLink>
-        </ThemedView>
+      <View style={styles.searchWrap}>
+        <SquircleView
+          style={styles.searchBox}
+          backgroundColor={theme.card}
+          cornerRadius={14}
+          cornerSmoothing={0.75}>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search courses, teachers, rooms…"
+            placeholderTextColor={theme.textMuted}
+            style={[styles.input, { color: theme.textPrimary }]}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+        </SquircleView>
+        {trimmed.length > 0 && (
+          <Text style={styles.meta}>
+            {filtered.length} result{filtered.length === 1 ? '' : 's'} for “{query.trim()}”
+          </Text>
+        )}
+      </View>
 
-        <ThemedView style={styles.sectionsWrapper}>
-          <Collapsible title="File-based routing">
-            <ThemedText type="small">
-              This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
-              <ThemedText type="code">src/app/explore.tsx</ThemedText>
-            </ThemedText>
-            <ThemedText type="small">
-              The layout file in <ThemedText type="code">src/app/_layout.tsx</ThemedText> sets up
-              the tab navigator.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/router/introduction">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Android, iOS, and web support">
-            <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
-              <ThemedText type="small">
-                You can open this project on Android, iOS, and the web. To open the web version,
-                press <ThemedText type="smallBold">w</ThemedText> in the terminal running this
-                project.
-              </ThemedText>
-              <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
-              />
-            </ThemedView>
-          </Collapsible>
-
-          <Collapsible title="Images">
-            <ThemedText type="small">
-              For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
-              <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
-              screen densities.
-            </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
-            <ExternalLink href="https://reactnative.dev/docs/images">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Light and dark mode components">
-            <ThemedText type="small">
-              This template has light and dark mode support. The{' '}
-              <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect what the
-              user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Animations">
-            <ThemedText type="small">
-              This template includes an example of an animated component. The{' '}
-              <ThemedText type="code">src/components/ui/collapsible.tsx</ThemedText> component uses
-              the powerful <ThemedText type="code">react-native-reanimated</ThemedText> library to
-              animate opening this hint.
-            </ThemedText>
-          </Collapsible>
-        </ThemedView>
-        {Platform.OS === 'web' && <WebBadge />}
-      </ThemedView>
+      <View style={styles.section}>
+        {filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>
+              {trimmed ? 'No matches' : 'Start typing to search'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {trimmed
+                ? `Nothing matched “${query.trim()}”. Try a different name or block.`
+                : 'Search by course, teacher, block, or room number.'}
+            </Text>
+          </View>
+        ) : (
+          <SquircleView
+            style={styles.card}
+            backgroundColor={theme.card}
+            cornerRadius={24}
+            cornerSmoothing={0.75}>
+            {filtered.map((course, index) => (
+              <PressableHighlight
+                key={course.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/course/[id]',
+                    params: { id: course.id },
+                  })
+                }
+                style={[
+                  styles.row,
+                  index < filtered.length - 1 && styles.rowBorder,
+                ]}
+                contentStyle={styles.rowContent}
+                cornerSmoothing={0.75}
+                cornerRadii={
+                  index === 0
+                    ? { topLeft: 24, topRight: 24 }
+                    : index === filtered.length - 1
+                      ? { bottomLeft: 24, bottomRight: 24 }
+                      : undefined
+                }>
+                <View style={styles.rowInner}>
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      {course.name}
+                    </Text>
+                    <Text style={styles.rowSub} numberOfLines={1}>
+                      {course.teacher} · Block {course.block} · {school.roomLabel(course.room)}
+                    </Text>
+                  </View>
+                  <View style={styles.rowRight}>
+                    <Text style={styles.rowGrade}>
+                      {course.grade.toFixed(1)} {school.letterFor(course.grade)}
+                    </Text>
+                    <ChevronRightIcon
+                      color={theme.textMuted}
+                      width={5.5}
+                      height={10}
+                    />
+                  </View>
+                </View>
+              </PressableHighlight>
+            ))}
+          </SquircleView>
+        )}
+      </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-  },
-  titleContainer: {
-    gap: Spacing.three,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
-  },
-  centerText: {
-    textAlign: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.five,
-    justifyContent: 'center',
-    gap: Spacing.one,
-    alignItems: 'center',
-  },
-  sectionsWrapper: {
-    gap: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  collapsibleContent: {
-    alignItems: 'center',
-  },
-  imageTutorial: {
-    width: '100%',
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
-  },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
-  },
-});
+function createStyles(theme: AppTheme) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+    },
+    content: {
+      paddingBottom: 48,
+    },
+    header: {
+      paddingHorizontal: 20,
+      paddingTop: 28,
+      gap: 4,
+    },
+    title: {
+      fontFamily: Fonts.sans,
+      fontWeight: '600',
+      fontSize: 22,
+      color: theme.textPrimary,
+    },
+    subtitle: {
+      fontFamily: Fonts.sans,
+      fontWeight: '500',
+      fontSize: 14,
+      color: theme.textSecondary,
+    },
+    searchWrap: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      gap: 8,
+    },
+    searchBox: {
+      paddingHorizontal: 14,
+      height: 44,
+      justifyContent: 'center',
+    },
+    input: {
+      fontFamily: Fonts.sans,
+      fontWeight: '500',
+      fontSize: 15,
+    },
+    meta: {
+      fontFamily: Fonts.sans,
+      fontWeight: '500',
+      fontSize: 12,
+      color: theme.textMuted,
+      paddingHorizontal: 2,
+    },
+    section: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    card: {
+      alignSelf: 'stretch',
+    },
+    row: {
+      height: 63,
+    },
+    rowBorder: {
+      borderBottomWidth: 2,
+      borderBottomColor: theme.separator,
+    },
+    rowContent: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+    },
+    rowInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    rowInfo: {
+      flexShrink: 1,
+      paddingRight: 12,
+      gap: 4,
+    },
+    rowTitle: {
+      fontFamily: Fonts.sans,
+      fontWeight: '500',
+      fontSize: 14,
+      color: theme.textPrimary,
+    },
+    rowSub: {
+      fontFamily: Fonts.sans,
+      fontWeight: '500',
+      fontSize: 12,
+      color: theme.textSecondary,
+    },
+    rowRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    rowGrade: {
+      fontFamily: Fonts.rounded,
+      fontWeight: '600',
+      fontSize: 13,
+      color: theme.textPrimary,
+    },
+    empty: {
+      paddingVertical: 32,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      gap: 6,
+    },
+    emptyTitle: {
+      fontFamily: Fonts.sans,
+      fontWeight: '600',
+      fontSize: 16,
+      color: theme.textPrimary,
+    },
+    emptySub: {
+      fontFamily: Fonts.sans,
+      fontWeight: '500',
+      fontSize: 13,
+      color: theme.textSecondary,
+      textAlign: 'center',
+    },
+  });
+}

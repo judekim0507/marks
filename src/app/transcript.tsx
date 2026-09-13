@@ -6,6 +6,7 @@ import { SquircleView } from '@/components/squircle-view';
 import { useAppTheme } from '@/components/theme-context';
 import { Fonts, type AppTheme } from '@/constants/theme';
 import { useSchool } from '@/providers/context';
+import { useSessionProvider } from '@/providers/auth-context';
 
 function cardCorners(index: number, count: number) {
   if (index === 0) return { topLeft: 24, topRight: 24 };
@@ -16,7 +17,9 @@ function cardCorners(index: number, count: number) {
 export default function TranscriptScreen() {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const school = useSchool();
+  const sessionSchool = useSessionProvider();
+  const fallback = useSchool();
+  const school = sessionSchool ?? fallback;
   const average = school.termAverage();
   const highest = Math.max(...school.courses.map((course) => course.grade));
   const summary = [
@@ -31,7 +34,6 @@ export default function TranscriptScreen() {
         <Text style={styles.title}>Transcript</Text>
         <Text style={styles.subtitle}>{school.profile.detail}</Text>
       </View>
-
       <View style={styles.section}>
         <SquircleView
           style={styles.card}
@@ -49,43 +51,51 @@ export default function TranscriptScreen() {
         </SquircleView>
       </View>
 
-      {school.transcript.terms.map((term) => (
-        <View key={term.id} style={styles.section}>
-          <Text style={styles.sectionLabel}>{term.label}</Text>
-          <SquircleView
-            style={styles.card}
-            backgroundColor={theme.card}
-            cornerRadius={24}
-            cornerSmoothing={0.75}>
-            {term.courses.map((course, index) => (
-              <PressableHighlight
-                key={course.id}
-                style={[
-                  styles.row,
-                  index < term.courses.length - 1 && styles.rowBorder,
-                ]}
-                contentStyle={styles.rowContent}
-                cornerSmoothing={0.75}
-                cornerRadii={cardCorners(index, term.courses.length)}>
-                <View style={styles.rowInner}>
-                  <View style={styles.rowInfo}>
-                    <Text style={styles.rowTitle} numberOfLines={1}>
-                      {course.name}
-                    </Text>
-                    <Text style={styles.rowSub}>{course.detail}</Text>
-                  </View>
-                  <Text style={styles.rowGrade}>
-                    {course.grade}%{' '}
-                    <Text style={styles.rowLetter}>
-                      {school.letterFor(course.grade)}
-                    </Text>
-                  </Text>
-                </View>
-              </PressableHighlight>
-            ))}
-          </SquircleView>
+      {school.transcript.terms.length === 0 ? (
+        <View style={styles.section}>
+          <Text style={styles.emptyText}>
+            No transcript entries from MyEd yet.
+          </Text>
         </View>
-      ))}
+      ) : (
+        school.transcript.terms.map((term) => (
+          <View key={term.id} style={styles.section}>
+            <Text style={styles.sectionLabel}>{term.label}</Text>
+            <SquircleView
+              style={styles.card}
+              backgroundColor={theme.card}
+              cornerRadius={24}
+              cornerSmoothing={0.75}>
+              {term.courses.map((course, index) => (
+                <PressableHighlight
+                  key={course.id}
+                  style={[
+                    styles.row,
+                    index < term.courses.length - 1 && styles.rowBorder,
+                  ]}
+                  contentStyle={styles.rowContent}
+                  cornerSmoothing={0.75}
+                  cornerRadii={cardCorners(index, term.courses.length)}>
+                  <View style={styles.rowInner}>
+                    <View style={styles.rowInfo}>
+                      <Text style={styles.rowTitle} numberOfLines={1}>
+                        {course.name}
+                      </Text>
+                      <Text style={styles.rowSub}>{course.detail}</Text>
+                    </View>
+                    <Text style={styles.rowGrade}>
+                      {course.grade}%{' '}
+                      <Text style={styles.rowLetter}>
+                        {school.letterFor(course.grade)}
+                      </Text>
+                    </Text>
+                  </View>
+                </PressableHighlight>
+              ))}
+            </SquircleView>
+          </View>
+        ))
+      )}
     </ScrollView>
   );
 }
@@ -195,6 +205,13 @@ function createStyles(theme: AppTheme) {
     rowLetter: {
       fontSize: 12,
       color: theme.sectionLabel,
+    },
+    emptyText: {
+      fontFamily: Fonts.sans,
+      fontWeight: '500',
+      fontSize: 14,
+      color: theme.textSecondary,
+      paddingHorizontal: 20,
     },
   });
 }

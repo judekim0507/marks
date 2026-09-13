@@ -30,12 +30,12 @@ const logoKeyframe = new Keyframe({
   60: {
     transform: [{ scale: 1.2 }],
     opacity: 0,
-    easing: Easing.elastic(1.2),
+    easing: Easing.inOut(Easing.cubic),
   },
   100: {
     transform: [{ scale: 1 }],
     opacity: 1,
-    easing: Easing.elastic(1.2),
+    easing: Easing.inOut(Easing.cubic),
   },
 });
 

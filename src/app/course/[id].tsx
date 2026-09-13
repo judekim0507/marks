@@ -1,30 +1,79 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { PressableHighlight } from '@/components/pressable-highlight';
 import { SegmentedControl } from '@/components/segmented-control';
 import { SquircleView } from '@/components/squircle-view';
 import { useAppTheme } from '@/components/theme-context';
 import { Fonts, type AppTheme } from '@/constants/theme';
 import { useSchool } from '@/providers/context';
+import { useAuth, useSessionProvider } from '@/providers/auth-context';
+import { useLiveCourseDetail } from '@/providers/myed/live-store';
 
 type CourseTab = 'overview' | 'attendance';
 
-function cardCorners(index: number, count: number) {
-  if (index === 0) return { topLeft: 24, topRight: 24 };
-  if (index === count - 1) return { bottomLeft: 24, bottomRight: 24 };
-  return undefined;
+const barEasing = Easing.bezier(0.2, 0, 0, 1);
+
+/**
+ * Progress bar that grows to `score`% via a shared value on mount,
+ * instead of rendering static width in a single frame.
+ */
+function CategoryBar({
+  score,
+  color,
+  style,
+}: {
+  score: number;
+  color: string;
+  style: { height: number; borderRadius: number };
+}) {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withTiming(score, { duration: 420, easing: barEasing });
+  }, [progress, score]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${progress.value}%`,
+  }));
+
+  return (
+    <Animated.View
+      entering={FadeIn.duration(300)}
+      style={[{ height: style.height, borderRadius: style.borderRadius, backgroundColor: color }, fillStyle]}
+    />
+  );
 }
 
 export default function CourseScreen() {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [tab, setTab] = useState<CourseTab>('overview');
-  const school = useSchool();
+  const sessionSchool = useSessionProvider();
+  const fallback = useSchool();
+  const school = sessionSchool ?? fallback;
+  const { session } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const course = school.courses.find((c) => c.id === id) ?? school.courses[0];
-  const detail = school.courseDetail(course.id);
+  // Live sessions restored from storage may lack this class's detail —
+  // refetch it on demand and prefer it once loaded.
+  const liveDetail = useLiveCourseDetail(session, course.id);
+  const detail = liveDetail.detail ?? school.courseDetail(course.id);
+  const loadingDetail = liveDetail.loading;
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
@@ -33,6 +82,12 @@ export default function CourseScreen() {
           {course.teacher} · Block {course.block} · {school.roomLabel(course.room)}
         </Text>
       </View>
+      {loadingDetail && (
+        <View style={styles.loadingRow}>
+          <ActivityIndicator color={theme.textSecondary} />
+          <Text style={styles.loadingText}>Loading live grades…</Text>
+        </View>
+      )}
 
       <View style={styles.segmentWrap}>
         <SegmentedControl
@@ -46,7 +101,10 @@ export default function CourseScreen() {
       </View>
 
       {tab === 'attendance' && (
-        <>
+        <Animated.View
+          key="attendance"
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(150)}>
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>This Term</Text>
             <SquircleView
@@ -91,11 +149,14 @@ export default function CourseScreen() {
               ))}
             </SquircleView>
           </View>
-        </>
+        </Animated.View>
       )}
 
       {tab === 'overview' && (
-        <>
+        <Animated.View
+          key="overview"
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(150)}>
       <View style={styles.section}>
         <View style={styles.sectionLabelRow}>
           <Text style={styles.sectionLabel}>Report Card</Text>
@@ -141,9 +202,7 @@ export default function CourseScreen() {
                 </Text>
               </View>
               <View style={styles.track}>
-                <View
-                  style={[styles.trackFill, { width: `${category.score}%` }]}
-                />
+                <CategoryBar score={category.score} color={theme.trackFill} style={styles.trackFill} />
               </View>
             </View>
           ))}
@@ -158,15 +217,13 @@ export default function CourseScreen() {
           cornerRadius={24}
           cornerSmoothing={0.75}>
           {detail.assignments.map((assignment, index) => (
-            <PressableHighlight
+            <View
               key={assignment.id}
               style={[
                 styles.assignmentRow,
+                styles.assignmentStatic,
                 index < detail.assignments.length - 1 && styles.rowBorder,
-              ]}
-              contentStyle={styles.assignmentContent}
-              cornerSmoothing={0.75}
-              cornerRadii={cardCorners(index, detail.assignments.length)}>
+              ]}>
               <View style={styles.assignmentInner}>
                 <View style={styles.assignmentInfo}>
                   <Text style={styles.rowTitle} numberOfLines={1}>
@@ -181,11 +238,11 @@ export default function CourseScreen() {
                   {assignment.score ?? 'Not graded'}
                 </Text>
               </View>
-            </PressableHighlight>
+            </View>
           ))}
-        </SquircleView>
-      </View>
-        </>
+</SquircleView>
+          </View>
+        </Animated.View>
       )}
     </ScrollView>
   );
@@ -220,6 +277,19 @@ function createStyles(theme: AppTheme) {
   segmentWrap: {
     marginTop: 24,
     paddingHorizontal: 20,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingHorizontal: 20,
+  },
+  loadingText: {
+    fontFamily: Fonts.sans,
+    fontWeight: '500',
+    fontSize: 13,
+    color: theme.textSecondary,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -340,7 +410,7 @@ function createStyles(theme: AppTheme) {
   assignmentRow: {
     height: 63,
   },
-  assignmentContent: {
+  assignmentStatic: {
     paddingHorizontal: 20,
     paddingTop: 12,
   },

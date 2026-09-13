@@ -27,6 +27,8 @@ export type SchoolProvider = {
   /** Categories, assignments, and per-course attendance for one course. */
   courseDetail(courseId: string): CourseDetail;
   attendance: AttendanceData;
+  /** Timetable for the schedule screen. */
+  schedule: ScheduleData;
   /** Dated assessments for the calendar. */
   upcoming: UpcomingItem[];
   transcript: TranscriptData;
@@ -101,6 +103,23 @@ export type UpcomingItem = {
   title: string;
   course: string;
   date: string;
+};
+
+export type ScheduleEntry = {
+  id: string;
+  course: string;
+  /** Timetable slot — MyEd blocks `A`–`H`, periods elsewhere. */
+  block: string;
+  teacher: string;
+  room: string;
+  /** e.g. `'S1'`, `'S2'`, `'Full year'`. */
+  term: string;
+  /** e.g. `'Mon · Wed'`. Empty when Aspen doesn't expose it. */
+  days: string;
+};
+
+export type ScheduleData = {
+  entries: ScheduleEntry[];
 };
 
 export type TranscriptData = {

@@ -24,8 +24,8 @@ const COURSES: Course[] = [
   { id: 'mu10', name: 'Concert Band 10', block: 'H', teacher: 'Mr. Tanaka', room: 'Band Room', grade: 93, symbol: 'music.note' },
 ];
 
-/** BC provincial letter scale. */
-function letterFor(grade: number): string {
+/** BC provincial letter scale. Shared with the live Aspen mapper. */
+export function bcLetterFor(grade: number): string {
   if (grade >= 86) return 'A';
   if (grade >= 73) return 'B';
   if (grade >= 67) return 'C+';
@@ -38,10 +38,10 @@ function letterFor(grade: number): string {
 const COURSE_DETAIL: CourseDetail = {
   updated: 'Updated Aug 8',
   categories: [
-    { id: 'tests', name: 'Tests', weight: '40%', score: 89.2, display: '89.2', letter: letterFor(89.2) },
-    { id: 'labs', name: 'Labs', weight: '30%', score: 95.1, display: '95.1', letter: letterFor(95.1) },
-    { id: 'homework', name: 'Homework', weight: '20%', score: 98.0, display: '98.0', letter: letterFor(98) },
-    { id: 'participation', name: 'Participation', weight: '10%', score: 100, display: '100', letter: letterFor(100) },
+    { id: 'tests', name: 'Tests', weight: '40%', score: 89.2, display: '89.2', letter: bcLetterFor(89.2) },
+    { id: 'labs', name: 'Labs', weight: '30%', score: 95.1, display: '95.1', letter: bcLetterFor(95.1) },
+    { id: 'homework', name: 'Homework', weight: '20%', score: 98.0, display: '98.0', letter: bcLetterFor(98) },
+    { id: 'participation', name: 'Participation', weight: '10%', score: 100, display: '100', letter: bcLetterFor(100) },
   ],
   assignments: [
     { id: 'a1', name: 'Unit 5 Test — Thermodynamics', date: 'Aug 6', score: '89/100' },
@@ -77,7 +77,7 @@ export const MyEdProvider: SchoolProvider = {
   },
   term: { label: 'Term 1' },
   courses: COURSES,
-  letterFor,
+  letterFor: bcLetterFor,
   roomLabel: (room) => (/^\d/.test(room) ? `Rm ${room}` : room),
   termAverage: () =>
     COURSES.reduce((sum, course) => sum + course.grade, 0) / COURSES.length,
@@ -108,6 +108,17 @@ export const MyEdProvider: SchoolProvider = {
     { id: 'u3', title: 'Lab Report: Kinetics', course: 'Chemistry 11', date: 'Aug 18' },
     { id: 'u4', title: 'Problem Set 13', course: 'Pre-Calculus 11', date: 'Aug 21' },
   ],
+  schedule: {
+    entries: COURSES.map((course) => ({
+      id: course.id,
+      course: course.name,
+      block: course.block,
+      teacher: course.teacher,
+      room: course.room,
+      term: 'S1',
+      days: '',
+    })),
+  },
   transcript: {
     terms: [
       {
